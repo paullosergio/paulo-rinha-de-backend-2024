@@ -39,7 +39,7 @@ services:
           memory: "60MB"
     
   db:
-    image: postgres:14.1-alpine
+    image: postgres
     command: postgres -c config_file="/etc/database.conf"
     hostname: db
     environment:
