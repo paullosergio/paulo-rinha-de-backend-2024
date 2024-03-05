@@ -2,9 +2,8 @@ import time
 
 from fastapi import FastAPI, HTTPException
 from fastapi.params import Depends
-from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
-from sqlalchemy.future import select as future_select  # Improved for async
+from sqlalchemy.orm import Session
+from sqlalchemy.future import select as future_select
 
 from . import schemas
 from .database import SessionLocal
@@ -28,7 +27,7 @@ async def post_transacao(
     session: Session = Depends(get_session),
 ):
 
-    cliente = session.get(Cliente, cliente_id) 
+    cliente = session.get(Cliente, cliente_id)
     if not cliente:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
