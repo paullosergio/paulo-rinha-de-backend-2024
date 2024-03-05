@@ -1,10 +1,11 @@
-import time
 
+import time
 from fastapi import FastAPI, HTTPException
 from fastapi.params import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select as future_select
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from . import schemas
 from .database import SessionLocal
 from .models import Cliente, Transacao
@@ -17,49 +18,52 @@ async def get_session():
     try:
         yield session
     finally:
-        session.close()
+        await session.close()
 
 
 @app.post("/clientes/{cliente_id}/transacoes", response_model=schemas.ClienteBase)
 async def post_transacao(
     cliente_id: int,
     transacao: schemas.TransactionBase,
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ):
+    async with session.begin():
+        # Bloqueia o cliente para atualização
+        stmt = select(Cliente).filter(Cliente.id == cliente_id).with_for_update()
+        result = await session.execute(stmt)
+        cliente = result.scalar_one_or_none()
+        if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
-    cliente = session.get(Cliente, cliente_id)
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+        # Processa a transação
+        if transacao.tipo == "d":
+            if cliente.saldo - transacao.valor < -cliente.limite:
+                raise HTTPException(status_code=422, detail="Saldo insuficiente")
+            cliente.saldo -= transacao.valor
+        else:
+            cliente.saldo += transacao.valor
 
-    # Process transaction
-    if transacao.tipo == "d":
-        if cliente.saldo - transacao.valor < -cliente.limite:
-            raise HTTPException(status_code=422, detail="Saldo insuficiente")
-        cliente.saldo -= transacao.valor
-    else:
-        cliente.saldo += transacao.valor
+        session.add(Transacao(**transacao.model_dump(), cliente_id=cliente_id))
 
-    session.add(Transacao(**transacao.model_dump(), cliente_id=cliente_id))
-    session.commit()
-
-    return cliente
-
+    return {
+        "limite": cliente.limite,
+        "saldo": cliente.saldo,
+    }
 
 @app.get("/clientes/{id}/extrato")
-async def get_extrato(id: int, session: Session = Depends(get_session)):
-    """Optimized statement for fetching the last 10 transactions."""
+async def get_extrato(id: int, session: AsyncSession = Depends(get_session)):
+    async with session.begin():
+        cliente = await session.get(Cliente, id)
+        if not cliente:
+            raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
-    cliente = session.get(Cliente, id)
-    if not cliente:
-        raise HTTPException(status_code=404, detail="Cliente não encontrado")
-
-    transactions_query = (
-        future_select(Transacao)
-        .filter(Transacao.cliente_id == id)
-        .order_by(Transacao.id.desc())
-        .limit(10)
-    )
-    transactions = session.execute(transactions_query)
+        transactions_query = (
+            future_select(Transacao)
+            .filter(Transacao.cliente_id == id)
+            .order_by(Transacao.id.desc())
+            .limit(10)
+        )
+        transactions = await session.execute(transactions_query)
 
     return {
         "saldo": {
