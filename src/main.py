@@ -29,9 +29,8 @@ async def post_transacao(
 ):
     async with session.begin():
         # Bloqueia o cliente para atualização
-        stmt = select(Cliente).filter(Cliente.id == cliente_id).with_for_update()
-        result = await session.execute(stmt)
-        cliente = result.scalar_one_or_none()
+        cliente = await session.get(Cliente, cliente_id)
+        await session.refresh(cliente, attribute_names = ["saldo"], with_for_update =True)
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente não encontrado")
 

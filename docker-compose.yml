@@ -14,7 +14,7 @@ services:
       resources:
         limits:
           cpus: "0.45"
-          memory: 170MB
+          memory: 140MB
 
   api02:
     <<: *api
@@ -36,7 +36,7 @@ services:
       resources:
         limits:
           cpus: "0.1"
-          memory: "60MB"
+          memory: "50MB"
     
   db:
     image: postgres
@@ -55,7 +55,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: "150MB"
+          memory: "220MB"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U admin -d rinha" ]
       interval: 3s

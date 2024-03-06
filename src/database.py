@@ -8,9 +8,7 @@ SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://admin:123@db/rinha"
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     future=True,
-    pool_pre_ping=True, # Recommended for asyncpg
-    pool_size=10,
-    max_overflow=-1
+    pool_pre_ping=True,  # Recommended for asyncpg
 )
 
 SessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
