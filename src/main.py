@@ -1,14 +1,12 @@
-
 import time
 from fastapi import FastAPI, HTTPException
 from fastapi.params import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select as future_select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from . import schemas
-from .database import SessionLocal
-from .models import Cliente, Transacao
+
+from schemas import ClienteBase, Transaction, TransactionBase
+from database import SessionLocal
+from models import Cliente, Transacao
 
 app = FastAPI()
 
@@ -18,19 +16,19 @@ async def get_session():
     try:
         yield session
     finally:
-        await session.close()
+        session.close()
 
 
-@app.post("/clientes/{cliente_id}/transacoes", response_model=schemas.ClienteBase)
+@app.post("/clientes/{cliente_id}/transacoes", response_model=ClienteBase)
 async def post_transacao(
     cliente_id: int,
-    transacao: schemas.TransactionBase,
-    session: AsyncSession = Depends(get_session),
+    transacao: TransactionBase,
+    session: Session = Depends(get_session),
 ):
-    async with session.begin():
+    with session.begin():
+
         # Bloqueia o cliente para atualização
-        cliente = await session.get(Cliente, cliente_id)
-        await session.refresh(cliente, attribute_names = ["saldo"], with_for_update =True)
+        cliente = session.get(Cliente, cliente_id, with_for_update=True)
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
@@ -44,15 +42,14 @@ async def post_transacao(
 
         session.add(Transacao(**transacao.model_dump(), cliente_id=cliente_id))
 
-    return {
-        "limite": cliente.limite,
-        "saldo": cliente.saldo,
-    }
+    return cliente
+
 
 @app.get("/clientes/{id}/extrato")
-async def get_extrato(id: int, session: AsyncSession = Depends(get_session)):
-    async with session.begin():
-        cliente = await session.get(Cliente, id)
+async def get_extrato(id: int, session: Session = Depends(get_session)):
+    
+    with session.begin():
+        cliente = session.get(Cliente, id)
         if not cliente:
             raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
@@ -62,7 +59,7 @@ async def get_extrato(id: int, session: AsyncSession = Depends(get_session)):
             .order_by(Transacao.id.desc())
             .limit(10)
         )
-        transactions = await session.execute(transactions_query)
+        transactions = session.execute(transactions_query)
 
     return {
         "saldo": {
@@ -71,6 +68,6 @@ async def get_extrato(id: int, session: AsyncSession = Depends(get_session)):
             "limite": cliente.limite,
         },
         "ultimas_transacoes": [
-            schemas.Transaction.model_validate(t) for t in transactions.scalars()
+            Transaction.model_validate(t) for t in transactions.scalars()
         ],
     }

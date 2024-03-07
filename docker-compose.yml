@@ -3,26 +3,28 @@ version: '3.9'
 services:
   api01: &api
     hostname: api01
-    build: 
-      context: .
-      dockerfile: ./Dockerfile
-    volumes:
-      - ./:/src
+    image: paulomg96/paulo_fastapi
+    command: uvicorn main:app --proxy-headers --host 0.0.0.0 --port 80
     ports:
       - "8080:80"
+    depends_on:
+     - db
     deploy:
       resources:
         limits:
-          cpus: "0.45"
+          cpus: "0.5"
           memory: 140MB
 
   api02:
     <<: *api
+    image: paulomg96/paulo_fastapi
     hostname: api02
     ports:
       - "8082:80"
+    command: uvicorn main:app --proxy-headers --host 0.0.0.0 --port 80
+    depends_on:
+     - db
 
-  
   nginx:
     image: nginx:latest
     volumes:
@@ -46,21 +48,14 @@ services:
       - POSTGRES_PASSWORD=123
       - POSTGRES_USER=admin
       - POSTGRES_DB=rinha
-    ports:
-      - '5432:5432'
     volumes:
       - "./script.sql:/docker-entrypoint-initdb.d/script.sql"
       - "./database.conf:/etc/database.conf"
     deploy:
       resources:
         limits:
-          cpus: "0.5"
+          cpus: "0.4"
           memory: "220MB"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d rinha" ]
-      interval: 3s
-      timeout: 1s
-      retries: 10
 
 networks:
   default:

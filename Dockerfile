@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY ./src /src/
 
-CMD ["uvicorn", "src.main:app", "--reload", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "src.main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "80"]

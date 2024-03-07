@@ -3,7 +3,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS clients (
     id SERIAL PRIMARY KEY NOT NULL,
     limite INTEGER NOT NULL,
     saldo INTEGER NOT NULL
-);
+    );
 
 -- Create the transactions table
 CREATE UNLOGGED TABLE IF NOT EXISTS transactions (
@@ -14,10 +14,6 @@ CREATE UNLOGGED TABLE IF NOT EXISTS transactions (
     cliente_id INTEGER NOT NULL,
     realizada_em TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
--- Add a foreign key constraint to transactions table
-ALTER TABLE transactions
-    ADD CONSTRAINT fk_cliente_id FOREIGN KEY (cliente_id) REFERENCES clients (id);
 
 -- Create an index on cliente_id for performance optimization
 CREATE INDEX idx_cliente_id ON transactions(cliente_id);
